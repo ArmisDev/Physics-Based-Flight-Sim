@@ -9,8 +9,6 @@ public class PlaneController : MonoBehaviour
     #region - Variables -
 
     [Header("Plane Parameters")]
-    [SerializeField] private float _fuelTotal;
-    [SerializeField] private float _currentFuel;
     [Tooltip("How much the throttle ramps up or down")]
     [SerializeField] private float _throttleIncrement = 0.1f;
     [Tooltip("Maximum engine thrust")]
@@ -42,9 +40,12 @@ public class PlaneController : MonoBehaviour
     //Private Variables
     public float _throttle;    //Percentage of engine thrust currently being used.
     public bool canFly;
+    private float _fuelTotal;
+    private float _currentFuel;
     private float _roll;        //Tilting left to right.
     private float _pitch;       //Tilting up and down.
     private float _yaw;         //Turning plane left to right (Does not rotate)
+    private float _currentFuelHUD;
 
     private float _responseModifier //This float is used to tweak the planes responsivness based on the planes mass.
     {
@@ -97,19 +98,25 @@ public class PlaneController : MonoBehaviour
 
     #region - Fuel Logic -
 
-    void FuelHandler()
+    public void FuelHandler()
     {
-        _currentFuel -= _throttle * 0.0001f;
-
-        if (_currentFuel <= 0f) StartCoroutine(OutOfFuel());
+        StartCoroutine(OutOfFuel());
     }
 
-    IEnumerator OutOfFuel()
+    public IEnumerator OutOfFuel()
     {
         _throttle--;
 
         yield return new WaitForSeconds(1f);
+        Debug.Log("Out of fuel!");
         canFly = false;
+    }
+
+    IEnumerator AddFuel()
+    {
+        pickupHandler.HandleFuelPickup(pickupType, _currentFuel);
+
+        yield return new WaitForSeconds(1f);
     }
 
     #endregion
@@ -118,7 +125,11 @@ public class PlaneController : MonoBehaviour
     {
         HandleInputs();
         UpdateHUD();
-        FuelHandler();
+
+        //Out of class stuff
+        FindObjectOfType<PickupHandler>().ReduceFuel(pickupType);
+        FindObjectOfType<PickupHandler>().OutOfFuelHandler(pickupType);
+        _currentFuelHUD = FindObjectOfType<PickupHandler>().GrabPickupType(pickupType)._currentFuel;
 
         engineSound.volume = _throttle * 0.01f;
         engineSound.pitch = _throttle * 0.01f;
@@ -154,6 +165,6 @@ public class PlaneController : MonoBehaviour
         hud.text = "Throttle " + _throttle.ToString("F2") + "%\n";
         hud.text += "Airspeed: " + (rb.velocity.magnitude * 3.6f).ToString("F2") + "km/h\n";
         hud.text += "Altitude: " + (transform.position.y.ToString("F2")) + "m\n";
-        fuelHUD.text = "Fuel: " + _currentFuel.ToString("F0") + "%";
+        fuelHUD.text = "Fuel: " + _currentFuelHUD.ToString("F0") + "%";
     }
 }
